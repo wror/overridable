@@ -12,14 +12,17 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
@@ -41,6 +44,11 @@ import io.github.classgraph.TypeArgument;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Overridable {
 	
+	@Target(ElementType.METHOD)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface Listener {
+	}
+
 	//TODO annotation for method to run when fields change
 
 	public class ConfigFile {
@@ -58,39 +66,64 @@ public @interface Overridable {
 				ex.printStackTrace(); //TODO
 			}
 
-			for (FieldInfo fieldInfo : getAnnotatedFields()) {
-				try {
-					Function<String, ?> c = switch (fieldInfo.getTypeSignatureOrTypeDescriptor()) {
-						case BaseTypeSignature ts -> s->{
+			for (Collection<FieldInfo> fieldInfos : getAnnotatedFields()) {
+				Class<?> containingCls = null;
+				if (!fieldInfos.isEmpty()) {
+					containingCls = fieldInfos.iterator().next().getClassInfo().loadClass();
+				}
+				boolean isFieldInClassChanged = false;
+				for (FieldInfo fieldInfo : fieldInfos) {
+					try {
+						Function<String, ?> c = switch (fieldInfo.getTypeSignatureOrTypeDescriptor()) {
+							case BaseTypeSignature ts -> s -> {
+								try {
+									return Array.get(Array.newInstance(ts.getType(),1),0).getClass().getConstructor(String.class).newInstance(s);
+								} catch (Exception e) {
+									throw new RuntimeException(e);
+								}
+							};
+							case ClassRefTypeSignature ts -> s -> {
+								s = s.trim();
+								Class<?> cls = ts.loadClass();
+								if (cls == List.class) {
+									Function<String, ?> f = sm->factoryMethod(getClass(ts, 0), sm);
+									return Arrays.stream(s.split(",")).map(f).collect(Collectors.toList());
+								} else if (cls == Map.class) {
+									Function<String, ?> keyFunction = sm->factoryMethod(getClass(ts, 0), sm.trim().split(":", 2)[0]);
+									Function<String, ?> valueFunction = sm->factoryMethod(getClass(ts, 1), sm.trim().split(":", 2)[1]);
+									return Arrays.stream(s.split(",")).collect(Collectors.toMap(keyFunction, valueFunction));
+								}
+								return factoryMethod(cls, s);
+							};
+							default -> throw new RuntimeException();
+						};
+						String fieldName = fieldInfo.getName();
+						Field field = containingCls.getDeclaredField(fieldName);
+						field.trySetAccessible();
+						if (prop.containsKey(fieldName)) {
+							Object originalValue = field.get(null);
+							Object newValue = c.apply(prop.getProperty(fieldName));
+							if (!Objects.equals(originalValue, newValue)) {
+								isFieldInClassChanged = true;
+							}
+							field.set(null, newValue);
+						}
+					} catch (NoSuchFieldException |  IllegalAccessException e) {
+						throw new RuntimeException(e);
+					}
+				}
+				if (isFieldInClassChanged) {
+					for (Method method : containingCls.getDeclaredMethods()) {
+						if (method.isAnnotationPresent(Listener.class)) {
 							try {
-								return Array.get(Array.newInstance(ts.getType(),1),0).getClass().getConstructor(String.class).newInstance(s);
-							} catch (Exception e) {
+								method.trySetAccessible();
+								//TODO maybe share the fields that changed if the method has appropriate params
+								method.invoke(null);
+							} catch (IllegalAccessException | InvocationTargetException e) {
 								throw new RuntimeException(e);
 							}
-						};
-						case ClassRefTypeSignature ts -> s->{
-							s = s.trim();
-							Class<?> cls = ts.loadClass();
-							if (cls == List.class) {
-								Function<String, ?> f = sm->factoryMethod(getClass(ts, 0), sm);
-								return Arrays.stream(s.split(",")).map(f).collect(Collectors.toList());
-							} else if (cls == Map.class) {
-								Function<String, ?> keyFunction = sm->factoryMethod(getClass(ts, 0), sm.trim().split(":", 2)[0]);
-								Function<String, ?> valueFunction = sm->factoryMethod(getClass(ts, 1), sm.trim().split(":", 2)[1]);
-								return Arrays.stream(s.split(",")).collect(Collectors.toMap(keyFunction, valueFunction));
-							}
-							return factoryMethod(cls, s);
-						};
-						default -> throw new RuntimeException();
-					};
-					String fieldName = fieldInfo.getName();
-					Field field = fieldInfo.getClassInfo().loadClass().getDeclaredField(fieldName);
-					field.trySetAccessible();
-					if (prop.containsKey(fieldName)) {
-						field.set(null, c.apply(prop.getProperty(fieldName)));
+						}
 					}
-				} catch (NoSuchFieldException |  IllegalAccessException e) {
-					throw new RuntimeException(e);
 				}
 			}
 		}
@@ -119,34 +152,39 @@ public @interface Overridable {
 			}
 		}
 
-		private static Iterable<FieldInfo> getAnnotatedFields() {
-			List<FieldInfo> fields = new ArrayList<>();
+		private static Iterable<Collection<FieldInfo>> getAnnotatedFields() {
+			Collection<Collection<FieldInfo>> fields = new ArrayList<>();
 			ScanResult scanResult = new ClassGraph()
 					.enableFieldInfo().enableAnnotationInfo().ignoreClassVisibility().ignoreFieldVisibility().scan();
 			ClassInfoList classes = scanResult.getClassesWithFieldAnnotation(Overridable.class);
 			for (ClassInfo classInfo : classes) {
+				Collection<FieldInfo> fieldsForClass = new ArrayList<>();
 				for (FieldInfo fieldInfo : classInfo.getFieldInfo()) {
 					if (fieldInfo.hasAnnotation(Overridable.class)) {
-						fields.add(fieldInfo);
+						fieldsForClass.add(fieldInfo);
 					}
 				}
+				fields.add(fieldsForClass);
 			}
 			return fields;
 		}
 
 		public static void validate() {
 			Map<String, String> names = new HashMap<>();
-			for (FieldInfo fieldInfo : getAnnotatedFields()) {
-				if (!fieldInfo.isStatic()) {
-					throw new RuntimeException("@Overridable field must be static: "+fieldInfo.getName()+" in "+fieldInfo.getClassName()); //TODO for now
-				}
-				String thisClass = fieldInfo.getClassName();
-				String otherClass = names.put(fieldInfo.getName(), thisClass);
-				if (otherClass != null) {
-					throw new RuntimeException("More than one @Overridable field with the same name: "+thisClass+" and "+otherClass);
+			for (Collection<FieldInfo> fieldInfos : getAnnotatedFields()) {
+					for (FieldInfo fieldInfo : fieldInfos) {
+					if (!fieldInfo.isStatic()) {
+						throw new RuntimeException("@Overridable field must be static: "+fieldInfo.getName()+" in "+fieldInfo.getClassName()); //TODO for now
+					}
+					String thisClass = fieldInfo.getClassName();
+					String otherClass = names.put(fieldInfo.getName(), thisClass);
+					if (otherClass != null) {
+						throw new RuntimeException("More than one @Overridable field with the same name: "+thisClass+" and "+otherClass);
+					}
 				}
 			}
-			//TODO actually invoke the above validations from overrideAll()
+			//TODO validate that all Listener annotated methods are static and have appropriate params
+			//TODO actually invoke the above validations from overrideAll() as well as here
 			//TODO show all the issues
 			//TODO type conversion trouble
 			//TODO warn re: no java field for property
@@ -155,20 +193,26 @@ public @interface Overridable {
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		public static void appendAll() throws IOException {
 			Map<String, String> overridables = new HashMap<>();
-			for (FieldInfo fieldInfo : getAnnotatedFields()) {
-				String stringValue = "";
-				try {
-					Field field = fieldInfo.getClassInfo().loadClass().getDeclaredField(fieldInfo.getName());
-					Object value = field.get(null);
-					stringValue = switch (value) {
-						case Map m -> String.join(", ", (List)m.keySet().stream().map(k->k+":"+m.get(k)).collect(Collectors.toList()));
-						case List list -> String.join(", ", list);
-						default -> String.valueOf(value);
-					};
-				} catch (Exception e) {
-					//can be run outside of the proper app, in which we don't expect good initialization
+			for (Collection<FieldInfo> fieldInfos : getAnnotatedFields()) {
+				Class<?> containingCls = null;
+				if (!fieldInfos.isEmpty()) {
+					containingCls = fieldInfos.iterator().next().getClassInfo().loadClass();
 				}
-				overridables.put(fieldInfo.getName(), stringValue);
+				for (FieldInfo fieldInfo : fieldInfos) {
+					String stringValue = "";
+					try {
+						Field field = containingCls.getDeclaredField(fieldInfo.getName());
+						Object value = field.get(null);
+						stringValue = switch (value) {
+							case Map m -> String.join(", ", (List)m.keySet().stream().map(k->k+":"+m.get(k)).collect(Collectors.toList()));
+							case List list -> String.join(", ", list);
+							default -> String.valueOf(value);
+						};
+					} catch (Exception e) {
+						//can be run outside of the proper app, in which we don't expect good initialization
+					}
+					overridables.put(fieldInfo.getName(), stringValue);
+				}
 			}
 			try (InputStream input = new FileInputStream(override_filename)) {
 				Properties prop = new Properties();
@@ -196,8 +240,10 @@ public @interface Overridable {
 
 		public static void cleanup() throws IOException {
 			Set<String> overridables = new HashSet<>();
-			for (FieldInfo fieldInfo : getAnnotatedFields()) {
-				overridables.add(fieldInfo.getName());
+			for (Collection<FieldInfo> fieldInfos : getAnnotatedFields()) {
+				for (FieldInfo fieldInfo : fieldInfos) {
+					overridables.add(fieldInfo.getName());
+				}
 			}
 			List<String> linesToWrite = new ArrayList<>();
 			//TODO '\' line continuation support?

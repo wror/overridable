@@ -113,6 +113,12 @@ public class OverridableTest {
 		assertEquals(Map.of(1, 1.1, 2, 2.2, 3, 3.3, 4, 4.4), partialMap);
 	}
 
+	@Overridable.Listener
+	private static void onOverridableChange() {
+		System.err.println("listened to a property change!");
+		//TODO make a real test
+	}
+
 	static void overrideProperties(String string) {
 		try {
 			Files.writeString(Path.of("override.properties"), string);
