@@ -13,7 +13,7 @@ annotate it:
 ```java
 @Overridable private final static int port = 80;
 ```
-and at application startup, initialize `Overridable` once for all:
+and at application startup, initialize once for all:
 
 ```java
 void main() {
