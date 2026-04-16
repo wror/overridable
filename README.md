@@ -1,6 +1,8 @@
+Overridable
+===========
 Rationale
 ---------
-It's nice to be able to configure applications without having to rebuild and re-release them.
+It's nice to be able to configure java applications without having to rebuild and re-release them.
 It's also nice to not have to manage and test more configuration than necessary.
 It is possible to have the advantages of both, using `Overridable`.
 
