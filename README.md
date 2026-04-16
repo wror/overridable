@@ -9,7 +9,7 @@ Use regular constants in your code, e.g.
 ```java
 private final static int port = 80;
 ```
-and add a new annotation:
+annotate it:
 ```java
 @Overridable private final static int port = 80;
 ```
