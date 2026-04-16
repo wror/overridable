@@ -52,6 +52,24 @@ public class OverridableTest {
 	}
 	enum Day { Sunday, Monday, Tuesday };
 
+	@Overridable static char evenAChar = '\0';
+	@Test
+	public void testChar() {
+		overrideProperties("""
+			evenAChar=x
+		""");
+		assertEquals('x', evenAChar);
+	}
+
+	@Overridable static Character orACharacter = '\0';
+	@Test
+	public void testCharacter() {
+		overrideProperties("""
+			orACharacter=x
+		""");
+		assertEquals('x', orACharacter);
+	}
+
 	@Overridable static List<Integer> myList = List.of(1, 2, 3);
 	@Test
 	public void testList() {

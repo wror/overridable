@@ -77,7 +77,10 @@ public @interface Overridable {
 						Function<String, ?> c = switch (fieldInfo.getTypeSignatureOrTypeDescriptor()) {
 							case BaseTypeSignature ts -> s -> {
 								try {
-									return Array.get(Array.newInstance(ts.getType(),1),0).getClass().getConstructor(String.class).newInstance(s);
+									Class wrapperClass = Array.get(Array.newInstance(ts.getType(),1),0).getClass();
+									Class paramClass = wrapperClass == Character.class ? char.class : String.class;
+									Object param = wrapperClass == Character.class ? s.charAt(0) : s;
+									return wrapperClass.getConstructor(paramClass).newInstance(param);
 								} catch (Exception e) {
 									throw new RuntimeException(e);
 								}
@@ -144,7 +147,11 @@ public @interface Overridable {
 					try {
 						return cls.getMethod("valueOf", String.class).invoke(null, s);
 					} catch (NoSuchMethodException andNoObviousStringFactoryMethod) {
-						return null;
+						try {
+							return cls.getConstructor(char.class).newInstance(s.charAt(0));
+						} catch (NoSuchMethodException orEvenACharConstructor) {
+							return null;
+						}
 					}
 				}
 			} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {

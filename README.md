@@ -69,3 +69,4 @@ You can call `Overridable.ConfigFile.cleanup()` to automatically remove lines fr
 * general warning of unplanned field deletion (i.e. developer might not have realized field was still being overridden)
 * per-environment configuration
 * automatic reload
+* configuring fields of final types that have with no string constructors (which'd be a problem if you can't change them)
