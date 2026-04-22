@@ -9,7 +9,7 @@ Use regular constants in your code, e.g.
 ```java
 private static int port = 80;
 ```
-annotate it:
+annotate them:
 ```java
 @Overridable private static int port = 80;
 ```
@@ -55,8 +55,7 @@ class Baz {
 }
 ```
 ### Validating
-`overrideAll()` performs validations related to both the override file and the code, like checking that overridable fields are static, and that they have no name collisions. It returns all the validation results,
-and does whatever it can, so you can choose to just rely on the initial values configured in code if there's an issue.
+`overrideAll()` performs validations related to both the override file and the code, like checking that overridable fields are static, and that they have no name collisions. If there’s an issue overriding any fields, it overrides all the fields that it can, and also reports all the issues. So you can choose to interrupt your whole flow, or to just rely on the initial values configured in code and proceed.
 
 One of the nice things about java annotations here is that you can validate configuration independently of running your application. This holds for the next features as well...
 ### Automatic config file maintenance
@@ -68,7 +67,7 @@ You can call `Overridable.ConfigFile.cleanup()` to automatically remove lines fr
   * automated testing of field combinations
   * integration with release processses to gather values configured in envs
 * general warning of unplanned field deletion (i.e. developer might not have realized field was still being overridden)
-* per-environment configuration
+* per-environment configuration in code
 * automatic reload
 * multiline and escape character properties file support
 * configuring fields of final types that have with no string constructors (which'd be a problem if you can't change them)

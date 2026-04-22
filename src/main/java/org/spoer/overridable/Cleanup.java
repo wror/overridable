@@ -1,4 +1,4 @@
-package spoer.org.overridable;
+package org.spoer.overridable;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -14,9 +14,9 @@ import java.util.stream.Stream;
 import io.github.classgraph.FieldInfo;
 
 public class Cleanup {
-	private OverrideState overrideState;
+	private State overrideState;
 
-	public Cleanup(OverrideState overrideState) {
+	public Cleanup(State overrideState) {
 		this.overrideState = overrideState;
 	}
 

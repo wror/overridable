@@ -1,10 +1,7 @@
-package spoer.org.overridable;
+package org.spoer.overridable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static spoer.org.overridable.Overridable.FieldIssue.COLLISION;
-import static spoer.org.overridable.Overridable.FieldIssue.NOT_STATIC;
-import static spoer.org.overridable.Overridable.FieldIssue.UNSUPPORTED_TYPE;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
@@ -17,10 +14,9 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import spoer.org.overridable.Overridable.CodeException;
-import spoer.org.overridable.Overridable.ConfigFileException;
-import spoer.org.overridable.Overridable.FieldIssue;;
+import org.spoer.overridable.Overridable.CodeException;
+import org.spoer.overridable.Overridable.ConfigFileException;
+import org.spoer.overridable.Overridable.FieldIssue;;
 
 public class OverridableTest {
 
@@ -51,27 +47,36 @@ public class OverridableTest {
 		assertEquals(456, baz);
 	}
 
-	@Overridable static int meeoh;
 	@Test
-	public void testReload() {
-		overrideProperties("""
-			meeoh=1
-		""");
-		assertEquals(1, meeoh);
-
-		overrideProperties("""
-			meeoh=2
-		""");
-		assertEquals(2, meeoh);
-	}
-
-	@Disabled
-	@Test
-	public void testIntButNotInFile() {
+	public void testTypeMismatch() {
+		baz = 0;
 		overrideProperties("""
 			baz=qux
 		""");
-		//TODO think how to test this
+		assertEquals(0, baz);
+		//TODO figure how to test the ConfigFileException
+	}
+
+	@Overridable static int myFieldToBeReloaded;
+	@Test
+	public void testReload() {
+		overrideProperties("""
+			myFieldToBeReloaded=1
+		""");
+		assertEquals(1, myFieldToBeReloaded);
+
+		overrideProperties("""
+			myFieldToBeReloaded=2
+		""");
+		assertEquals(2, myFieldToBeReloaded);
+	}
+
+	@Overridable static int wocka = -1;
+	@Test
+	public void testIntButNotInFile() {
+		overrideProperties("""
+		""");
+		assertEquals(-1, wocka);
 	}
 
 	@Overridable static Day day = Day.Sunday;
@@ -123,7 +128,7 @@ public class OverridableTest {
 	@Test
 	public void testListWithoutGenericParam () {
 		CodeException thrown = assertThrows(CodeException.class, () -> Overridable.ConfigFile.overrideAll());
-		assertTrue(thrown.issues.get("listWithoutGenericParam").contains(UNSUPPORTED_TYPE));
+		assertTrue(thrown.issues.get("listWithoutGenericParam").contains(FieldIssue.CODE_EXCEPTION));
 	}
 
 	@Overridable static Map<Integer, Double> myMap = Map.of(1, 1.1, 2, 2.2, 3, 3.3);
@@ -162,14 +167,14 @@ public class OverridableTest {
 	@Test
 	public void testCollision() {
 		CodeException thrown = assertThrows(CodeException.class, () -> Overridable.ConfigFile.overrideAll());
-		assertTrue(thrown.issues.get("myMap").contains(COLLISION));
+		assertTrue(thrown.issues.get("myMap").contains(FieldIssue.COLLISION));
 	}
 
 	@Overridable String wee;
 	@Test
 	public void testNonStatic() {
 		CodeException thrown = assertThrows(CodeException.class, () -> Overridable.ConfigFile.overrideAll());
-		assertTrue(thrown.issues.get("wee").contains(NOT_STATIC));
+		assertTrue(thrown.issues.get("wee").contains(FieldIssue.NOT_STATIC));
 	}
 
 	@Overridable static Map<Integer, Double> partialMap = Map.of(1, 1.1, 2, 2.2, 3, 3.3);
@@ -191,11 +196,8 @@ public class OverridableTest {
 		try {
 			Overridable.ConfigFile.overrideAll();
 			return Collections.emptyMap();
-		} catch (CodeException e) {
+		} catch (CodeException | ConfigFileException e) {
 			return e.issues;
-		} catch (ConfigFileException e) {
-			System.err.println(e.issues);
-			throw new RuntimeException(e);
 		}
 	}
 }

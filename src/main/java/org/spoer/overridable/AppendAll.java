@@ -1,4 +1,4 @@
-package spoer.org.overridable;
+package org.spoer.overridable;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -15,9 +15,9 @@ import java.util.stream.Stream;
 import io.github.classgraph.FieldInfo;
 
 public class AppendAll {
-	private OverrideState overrideState;
+	private State overrideState;
 
-	public AppendAll(OverrideState overrideState) {
+	public AppendAll(State overrideState) {
 		this.overrideState = overrideState;
 	}
 
@@ -40,13 +40,13 @@ public class AppendAll {
 						default -> String.valueOf(value);
 					};
 				} catch (Exception e) {
-					//can be run outside of the proper app, in which we don't expect good initialization
+					//can be run outside of the proper app, in which case we don't expect good initialization
 				}
 				overridables.put(fieldInfo.getName(), stringValue);
 			}
 		}
-		Properties prop = overrideState.overrideProperties();
-		prop.stringPropertyNames().forEach(s->overridables.remove(s));
+		Properties properties = overrideState.overrideProperties();
+		properties.stringPropertyNames().forEach(s->overridables.remove(s));
 		List<String> linesToWrite = new ArrayList<>();
 		try (Stream<String> lines = overrideState.overrideFileReader().lines()) {
 			lines.filter(s->!s.startsWith("#") || !s.contains("=")).forEach(linesToWrite::add);

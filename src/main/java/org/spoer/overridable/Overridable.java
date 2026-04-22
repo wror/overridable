@@ -1,4 +1,4 @@
-package spoer.org.overridable;
+package org.spoer.overridable;
 
 import java.io.IOException;
 import java.lang.annotation.ElementType;
@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 import java.util.Map;
 import java.util.Set;
 
-import spoer.org.overridable.OverrideAll.OverridableException;
+import org.spoer.overridable.Validation.OverridableException;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
@@ -20,16 +20,16 @@ public @interface Overridable {
 	}
 
 	class ConfigFile {
-		private static OverrideState overrideState;
+		private static State overrideState;
 		public static final String default_filename = "override.properties"; //in the classpath
 
 		public static void set(String filename) { //on the filesystem
-			overrideState = new OverrideState(filename);
+			overrideState = new State(filename);
 		}
 
-		private static OverrideState overrideState() {
+		private static State overrideState() {
 			if (overrideState == null) {
-				overrideState = new OverrideState(null);
+				overrideState = new State(null);
 			}
 			return overrideState;
 		}
@@ -56,7 +56,7 @@ public @interface Overridable {
 		}
 	}
 
-	public enum FieldIssue { NOT_STATIC, FINAL, UNSUPPORTED_TYPE, COLLISION, TYPE_MISMATCH, FILE_EXCEPTION, CODE_EXCEPTION }
+	public enum FieldIssue { NOT_STATIC, FINAL, UNSUPPORTED_TYPE, COLLISION, FILE_EXCEPTION, CODE_EXCEPTION }
 
 	class ConfigFileException extends OverridableException {
 		ConfigFileException(Map<String, Set<FieldIssue>> fieldIssues) {

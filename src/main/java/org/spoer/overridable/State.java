@@ -1,4 +1,4 @@
-package spoer.org.overridable;
+package org.spoer.overridable;
 
 import static java.lang.System.getProperty;
 
@@ -19,18 +19,19 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
 
+import org.spoer.overridable.Overridable.ConfigFile;
+
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.ScanResult;
-import spoer.org.overridable.Overridable.ConfigFile;
 
-public class OverrideState {
+public class State {
 	private final Path user_specified_file;
 	private final Iterable<Collection<FieldInfo>> fields;
 
-	public OverrideState(String user_specified_file) {
+	public State(String user_specified_file) {
 		this.user_specified_file = user_specified_file == null ? null : Path.of(user_specified_file);
 		this.fields = getNewAnnotatedFields();
 	}
