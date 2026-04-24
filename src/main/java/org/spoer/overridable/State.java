@@ -1,6 +1,7 @@
 package org.spoer.overridable;
 
 import static java.lang.System.getProperty;
+import static java.lang.System.Logger.Level.WARNING;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -11,29 +12,33 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.System.Logger;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import org.spoer.overridable.Overridable.ConfigFile;
 
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ClassGraph.ClasspathElementFilter;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.FieldInfo;
 import io.github.classgraph.ScanResult;
 
 public class State {
+	private final Logger logger = System.getLogger(getClass().getName());
 	private final Path user_specified_file;
 	private final Iterable<Collection<FieldInfo>> fields;
 
-	public State(String user_specified_file) {
+	public State(String user_specified_file, ClasspathElementFilter classpathElementFilter) {
 		this.user_specified_file = user_specified_file == null ? null : Path.of(user_specified_file);
-		this.fields = getNewAnnotatedFields();
+		this.fields = getNewAnnotatedFields(classpathElementFilter);
 	}
 
 	public BufferedWriter overrideFileWriter() throws IOException {
@@ -90,10 +95,19 @@ public class State {
 		return properties;
 	}
 
-	private static Iterable<Collection<FieldInfo>> getNewAnnotatedFields() {
+	private Iterable<Collection<FieldInfo>> getNewAnnotatedFields(ClasspathElementFilter classpathElementFilter) {
 		Collection<Collection<FieldInfo>> fields = new ArrayList<>();
-		ScanResult scanResult = new ClassGraph().enableFieldInfo().enableAnnotationInfo().ignoreClassVisibility().ignoreFieldVisibility().scan();
+		ClassGraph classGraph = new ClassGraph().enableFieldInfo().enableAnnotationInfo().ignoreClassVisibility().ignoreFieldVisibility();
+		LoggingClasspathElementFilter decoratedClasspathElementFilter = new LoggingClasspathElementFilter(classpathElementFilter);
+		if (classpathElementFilter != null) {
+			classGraph.filterClasspathElements(decoratedClasspathElementFilter);
+		}
+		ScanResult scanResult = classGraph.scan();
 		ClassInfoList classes = scanResult.getClassesWithFieldAnnotation(Overridable.class);
+		if (classes.isEmpty()) {
+			logger.log(WARNING, "Found no fields annotated with @"+Override.class.getSimpleName());
+			decoratedClasspathElementFilter.log();
+		}
 		for (ClassInfo classInfo : classes) {
 			Collection<FieldInfo> fieldsForClass = new ArrayList<>();
 			for (FieldInfo fieldInfo : classInfo.getFieldInfo()) {
@@ -104,6 +118,32 @@ public class State {
 			fields.add(fieldsForClass);
 		}
 		return fields;
+	}
+
+	class LoggingClasspathElementFilter implements ClasspathElementFilter {
+		private final ClasspathElementFilter underlying;
+		private final List<String> classpathElements = new ArrayList<>();
+		private boolean atLeastOneFilteredIn;
+
+		LoggingClasspathElementFilter(ClasspathElementFilter underlying) {
+			this.underlying = underlying;
+		}
+
+		void log() {
+			if (underlying != null && !atLeastOneFilteredIn) {
+				logger.log(WARNING, "Since you are using optimizeBySelectingFromClasspath(), you probably want its param to return true for at least one of: "+classpathElements);
+			}
+		}
+
+		@Override
+		public boolean includeClasspathElement(String classpathElementPathStr) {
+			boolean includeClasspathElement = underlying.includeClasspathElement(classpathElementPathStr);
+			if (includeClasspathElement) {
+				atLeastOneFilteredIn = true;
+			}
+			classpathElements.add(classpathElementPathStr);
+			return includeClasspathElement;
+		}
 	}
 
 	//outer type is an Iterable because theoretically we could return a lazy collection, and

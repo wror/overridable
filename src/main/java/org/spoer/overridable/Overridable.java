@@ -10,6 +10,8 @@ import java.util.Set;
 
 import org.spoer.overridable.Validation.OverridableException;
 
+import io.github.classgraph.ClassGraph.ClasspathElementFilter;
+
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Overridable {
@@ -21,15 +23,27 @@ public @interface Overridable {
 
 	class ConfigFile {
 		private static State overrideState;
+		private static ClasspathElementFilter classpathElementFilter;
+		private static String filename; //on the filesystem
 		public static final String default_filename = "override.properties"; //in the classpath
 
-		public static void set(String filename) { //on the filesystem
-			overrideState = new State(filename);
+		public static void optimizeBySelectingFromClasspath(ClasspathElementFilter classpathElementFilterArg) {
+			if (overrideState != null) {
+				throw new RuntimeException("set before using overrideAll, appendAll, and cleanup");
+			}
+			classpathElementFilter = classpathElementFilterArg;
+		}
+			
+		public static void set(String filenameArg) {
+			if (overrideState != null) {
+				throw new RuntimeException("set before using overrideAll, appendAll, and cleanup");
+			}
+			filename = filenameArg;
 		}
 
 		private static State overrideState() {
 			if (overrideState == null) {
-				overrideState = new State(null);
+				overrideState = new State(filename, classpathElementFilter);
 			}
 			return overrideState;
 		}

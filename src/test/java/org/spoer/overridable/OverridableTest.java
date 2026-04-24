@@ -177,16 +177,6 @@ public class OverridableTest {
 		assertTrue(thrown.issues.get("wee").contains(FieldIssue.NOT_STATIC));
 	}
 
-	@Overridable static Map<Integer, Double> partialMap = Map.of(1, 1.1, 2, 2.2, 3, 3.3);
-	@Disabled
-	@Test
-	public void testPartialMap() {
-		overrideProperties("""
-			partialMap.4=4.4
-		""");
-		assertEquals(Map.of(1, 1.1, 2, 2.2, 3, 3.3, 4, 4.4), partialMap);
-	}
-
 	static Map<String, Set<FieldIssue>> overrideProperties(String string) {
 		try {
 			Files.writeString(Path.of("target","test-classes","override.properties"), string);

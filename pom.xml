@@ -8,8 +8,7 @@
   <version>1.0-SNAPSHOT</version>
 
   <name>overridable</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <url>https://github.com/wror/overridable#overridable</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -34,22 +33,42 @@
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Optionally: parameterized tests support -->
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <scope>test</scope>
+      <groupId>io.github.classgraph</groupId>
+      <artifactId>classgraph</artifactId>
+      <version>4.8.184</version>
     </dependency>
-	
-	<dependency>
-	  <groupId>io.github.classgraph</groupId>
-	  <artifactId>classgraph</artifactId>
-	  <version>4.8.184</version>
-	</dependency>
-
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>noCodeErrors</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration combine.self="override">
+              <testIncludes>
+                <testInclude>**/OverridableConfigFileValidationTest.java</testInclude>
+              </testIncludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <testExcludes>
+            <testExclude>**/OverridableConfigFileValidationTest.java</testExclude>
+          </testExcludes>
+        </configuration>
+      </plugin>
+    </plugins>
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
