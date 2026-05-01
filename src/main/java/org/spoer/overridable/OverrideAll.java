@@ -84,29 +84,29 @@ public class OverrideAll {
 
 	private Function<String, ?> deserializer(FieldInfo fieldInfo, Validation valid) {
 		TypeSignature type = fieldInfo.getTypeSignatureOrTypeDescriptor();
-		switch (type) {
-			case BaseTypeSignature ts:
-				Class<? extends Object> wrapperClass = Array.get(Array.newInstance(ts.getType(),1),0).getClass(); //standard one-line hack to get wrapper type for primitve type
-				return constructor(wrapperClass, fieldInfo, valid);
-			case ClassRefTypeSignature ts:
-				try {
-					Class<?> cls = ts.loadClass();
-					if (cls == List.class) {
-						Function<String, ?> memberDeserializer = constructor(getClassFromGeneric(ts, 0), fieldInfo, valid);
-						return s->Arrays.stream(split(s)).map(memberDeserializer).collect(Collectors.toList());
-					} else if (cls == Map.class) {
-						Function<String, ?> keyDeserializer = onStringPair(constructor(getClassFromGeneric(ts, 0), fieldInfo, valid), 0);
-						Function<String, ?> valueDeserializer = onStringPair(constructor(getClassFromGeneric(ts, 1), fieldInfo, valid), 1);
-						return s->Arrays.stream(split(s)).collect(Collectors.toMap(keyDeserializer, valueDeserializer));
-					} else {
-						return constructor(cls, fieldInfo, valid);
-					}
-				} catch (RuntimeException e) {
-					//fall-thru!
+		if (type instanceof BaseTypeSignature) {
+			BaseTypeSignature ts = (BaseTypeSignature)type;
+			Class<? extends Object> wrapperClass = Array.get(Array.newInstance(ts.getType(),1),0).getClass(); //standard one-line hack to get wrapper type for primitve type
+			return constructor(wrapperClass, fieldInfo, valid);
+		} else if (type instanceof ClassRefTypeSignature) {
+			ClassRefTypeSignature ts = (ClassRefTypeSignature)type;
+			try {
+				Class<?> cls = ts.loadClass();
+				if (cls == List.class) {
+					Function<String, ?> memberDeserializer = constructor(getClassFromGeneric(ts, 0), fieldInfo, valid);
+					return s->Arrays.stream(split(s)).map(memberDeserializer).collect(Collectors.toList());
+				} else if (cls == Map.class) {
+					Function<String, ?> keyDeserializer = onStringPair(constructor(getClassFromGeneric(ts, 0), fieldInfo, valid), 0);
+					Function<String, ?> valueDeserializer = onStringPair(constructor(getClassFromGeneric(ts, 1), fieldInfo, valid), 1);
+					return s->Arrays.stream(split(s)).collect(Collectors.toMap(keyDeserializer, valueDeserializer));
+				} else {
+					return constructor(cls, fieldInfo, valid);
 				}
-			default:
-				return valid.addIssueAndGetNullDeserializer(fieldInfo, type);
+			} catch (RuntimeException e) {
+				//fall-thru!
+			}
 		}
+		return valid.addIssueAndGetNullDeserializer(fieldInfo, type);
 	}
 
 	private <T> Function<String, T> constructor(Class<T> cls, FieldInfo fieldInfo, Validation valid) {

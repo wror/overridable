@@ -22,9 +22,7 @@ public class OverridableConfigFileValidationTest {
 	@Overridable static int baz = 123;
 	@Test
 	public void testTypeMismatch() {
-		Map<String, Set<FieldIssue>> issues = OverridableConfigFileValidationTest.overrideProperties("""
-			baz=qux
-		""");
+		Map<String, Set<FieldIssue>> issues = OverridableConfigFileValidationTest.overrideProperties(" baz=qux ");
 		assertEquals(123, baz);
 		assertTrue(issues.get("baz").contains(FieldIssue.FILE_EXCEPTION));
 	}

@@ -23,36 +23,28 @@ public class OverridableTest {
 	@Overridable static String foo = "foo is the default";
 	@Test
 	public void testSimple() throws IOException {
-		overrideProperties("""
-			foo=bar
-		""");
+		overrideProperties(" foo=bar ");
 		assertEquals("bar", foo);
 	}
 
 	static String bar = "bar";
 	@Test
 	public void testUnconfigured() throws IOException {
-		overrideProperties("""
-			bar=notbar
-		""");
+		overrideProperties(" bar=notbar ");
 		assertEquals("bar", bar);
 	}
 
 	@Overridable static int baz = 123;
 	@Test
 	public void testInt() {
-		overrideProperties("""
-			baz=456
-		""");
+		overrideProperties(" baz=456 ");
 		assertEquals(456, baz);
 	}
 
 	@Test
 	public void testTypeMismatch() {
 		baz = 0;
-		overrideProperties("""
-			baz=qux
-		""");
+		overrideProperties(" baz=qux ");
 		assertEquals(0, baz);
 		//TODO figure how to test the ConfigFileException
 	}
@@ -60,31 +52,24 @@ public class OverridableTest {
 	@Overridable static int myFieldToBeReloaded;
 	@Test
 	public void testReload() {
-		overrideProperties("""
-			myFieldToBeReloaded=1
-		""");
+		overrideProperties(" myFieldToBeReloaded=1 ");
 		assertEquals(1, myFieldToBeReloaded);
 
-		overrideProperties("""
-			myFieldToBeReloaded=2
-		""");
+		overrideProperties(" myFieldToBeReloaded=2 ");
 		assertEquals(2, myFieldToBeReloaded);
 	}
 
 	@Overridable static int wocka = -1;
 	@Test
 	public void testIntButNotInFile() {
-		overrideProperties("""
-		""");
+		overrideProperties(" ");
 		assertEquals(-1, wocka);
 	}
 
 	@Overridable static Day day = Day.Sunday;
 	@Test
 	public void testEnum() {
-		overrideProperties("""
-			day=Monday
-		""");
+		overrideProperties(" day=Monday ");
 		assertEquals(Day.Monday, day);
 	}
 	enum Day { Sunday, Monday, Tuesday };
@@ -92,35 +77,27 @@ public class OverridableTest {
 	@Overridable static char evenAChar = '\0';
 	@Test
 	public void testChar() {
-		overrideProperties("""
-			evenAChar=x
-		""");
+		overrideProperties(" evenAChar=x ");
 		assertEquals('x', evenAChar);
 	}
 
 	@Overridable static Character orACharacter = '\0';
 	@Test
 	public void testCharacter() {
-		overrideProperties("""
-			orACharacter=x
-		""");
+		overrideProperties(" orACharacter=x ");
 		assertEquals('x', orACharacter);
 	}
 
 	@Overridable static List<Integer> myList = List.of(1, 2, 3);
 	@Test
 	public void testList() {
-		overrideProperties("""
-			myList=4, 5
-		""");
+		overrideProperties(" myList=4, 5 ");
 		assertEquals(List.of(4, 5), myList);
 	}
 
 	@Test
 	public void testListOverriddenToEmpty() {
-		overrideProperties("""
-			myList=
-		""");
+		overrideProperties(" myList= ");
 		assertEquals(List.of(), myList);
 	}
 
@@ -134,18 +111,13 @@ public class OverridableTest {
 	@Overridable static Map<Integer, Double> myMap = Map.of(1, 1.1, 2, 2.2, 3, 3.3);
 	@Test
 	public void testMap() {
-		overrideProperties("""
-			myMap=4:4.4, 5:5.5
-		""");
+		overrideProperties(" myMap=4:4.4, 5:5.5 ");
 		assertEquals(Map.of(4, 4.4, 5, 5.5), myMap);
 	}
 
 	@Test
 	public void testAppend() throws IOException {
-		overrideProperties("""
-			map=4:4.4, 5:5.5
-			#baz=wacka
-		""");
+		overrideProperties(" map=4:4.4, 5:5.5\n#baz=wacka ");
 		Overridable.ConfigFile.appendAll();
 		//TODO expect!
 	}

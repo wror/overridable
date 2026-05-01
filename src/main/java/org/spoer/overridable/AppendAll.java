@@ -34,11 +34,15 @@ public class AppendAll {
 				try {
 					Field field = containingCls.getDeclaredField(fieldInfo.getName());
 					Object value = field.get(null);
-					stringValue = switch (value) {
-						case Map m -> String.join(", ", (List)m.keySet().stream().map(k->k+":"+m.get(k)).collect(Collectors.toList()));
-						case List list -> String.join(", ", list);
-						default -> String.valueOf(value);
-					};
+					if (value instanceof Map) {
+						Map map = (Map)value;
+						stringValue = String.join(", ", (List)map.keySet().stream().map(k->k+":"+map.get(k)).collect(Collectors.toList()));
+					} else if (value instanceof List) {
+						List list = (List)value;
+						stringValue = String.join(", ", list);
+					} else {
+						stringValue = String.valueOf(value);
+					}
 				} catch (Exception e) {
 					//can be run outside of the proper app, in which case we don't expect good initialization
 				}
