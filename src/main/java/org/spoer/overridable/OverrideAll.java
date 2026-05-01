@@ -1,6 +1,7 @@
 package org.spoer.overridable;
 
 import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -36,19 +37,24 @@ public class OverrideAll {
 		Validation valid = new Validation();
 		Properties properties = valid.getProperties(overrideState);
 		for (Collection<FieldInfo> fieldInfos : overrideState.getAnnotatedFields()) {
+			Class<?> containingCls;
+			try {
+				containingCls = fieldInfos.iterator().next().getClassInfo().loadClass();
+			} catch (RuntimeException e) {
+				continue;
+			}
 			Set<FieldInfo> changedFields = new HashSet<>();
-			Class<?> containingCls = null;
 			for (FieldInfo fieldInfo : fieldInfos) {
 				valid.eachField(fieldInfo);
 				try {
-					Function<String, ?> deserializer = deserializer(fieldInfo, valid);
 					String fieldName = fieldInfo.getName();
-					if (containingCls == null) {
-						containingCls = fieldInfos.iterator().next().getClassInfo().loadClass();
-					}
 					Field field = containingCls.getDeclaredField(fieldName);
 					field.trySetAccessible();
 					Object originalValue = field.get(null);
+					if (!properties.containsKey(fieldName)) {
+						logger.log(Level.INFO, "Leaving {0} as {1}", fieldName, originalValue);
+					}
+					Function<String, ?> deserializer = deserializer(fieldInfo, valid);
 					/*
 					 * We do as much as we can before looking at a value from the config file, 
 					 * so that we can detect and report all issues that are independent of the config file.
@@ -57,6 +63,7 @@ public class OverrideAll {
 						Object newValue = deserializer.apply(properties.getProperty(fieldName));
 						field.set(null, newValue);
 						if (!Objects.equals(originalValue, newValue)) {
+							logger.log(Level.INFO, "Setting {0} to {1}", fieldName, newValue);
 							changedFields.add(fieldInfo);
 						}
 					}
